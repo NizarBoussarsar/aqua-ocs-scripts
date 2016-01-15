@@ -1,5 +1,5 @@
 1 – Start-up
-- > Get Local Tank “Code” form ENV
+- > Get Local Tank “Code” form ENV (/etc/environment)
 - > Send GET query to /tank to get tank config
 NO - >
 Blink LED & Check back every X minutes  
