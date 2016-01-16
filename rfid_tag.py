@@ -6,14 +6,14 @@ rfidData = ''
 print "Waiting for RFID Tag.."
 
 while True:
-        if (ser.isOpen() == False):
-                ser.open()
+    if (ser.isOpen() == False):
+        ser.open()
         ser.flushInput()
-        ser.flushOutput()        
+        ser.flushOutput()
         #rfidData = ser.read(14)
 	rfidData = ser.readline()
-	if len(rfidData) > 0:
-                print "RFID Tag number:", rfidData
-        	ser.close()
+    if len(rfidData) > 0:
+        print "RFID Tag number:", rfidData
+        ser.close()
 #		print "Communication closed"
-		break
+    break
