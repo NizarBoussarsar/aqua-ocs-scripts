@@ -41,7 +41,6 @@ def setLedValue(brightness):
         level = int('0111111111', 2)
     if (brightness > 90 and brightness <= 100):
         level = int('1111111111', 2)
-    print "level : " + str(level) + " brightness : " + str(brightness)
     grovepi.ledBar_setBits(ledbar, level)
 
 def getTankInfos(code):
@@ -118,10 +117,8 @@ def start():
     else:
         for i in range(0, 4):
             digitalWrite(led,1)
-            print "BLINK"
             time.sleep(1)
             digitalWrite(led,0)
-            print "BLANK"
             time.sleep(1)
         time.sleep(60)
         start(json_obj)

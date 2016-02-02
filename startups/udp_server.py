@@ -6,20 +6,15 @@ import os
 import socket
 import sqlite3
 import time
-
+import requests
 import dateutil.parser
 
-
-# TODO
-# Get Temperature (DONE TODO TEST)
-# Set Temperature
-# Get Light (Done)
-# Set Light
-# UPNP x2 (DONE TODO integrate & test)
+code = os.environ["TANKCODE"]
+tank = ''
 
 
 def getUPnPValues():
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     c.execute("SELECT upnp, upnpTemp, upnpLight  FROM 'locals'")
     data = c.fetchone()
@@ -32,7 +27,7 @@ def getLastDateInDB():
     today += str('{:02d}'.format(datetime.datetime.now().month))
     today += str(datetime.datetime.now().year)
 
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     c.execute("SELECT today  FROM 'locals' WHERE today = '" + today + "'")
     data = c.fetchone()
@@ -45,7 +40,7 @@ def getLastDateInDB():
 
 # Checks if the line in DB is from today
 def checkTodayInDB():
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     today = str('{:02d}'.format(datetime.datetime.now().day))
     today += str('{:02d}'.format(datetime.datetime.now().month))
@@ -72,7 +67,7 @@ def checkTodayInDB():
 
 
 def updateInDB(col, value):
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     today = str('{:02d}'.format(datetime.datetime.now().day))
     today += str('{:02d}'.format(datetime.datetime.now().month))
@@ -84,11 +79,8 @@ def updateInDB(col, value):
     c.close()
 
 
-    ###############################
-
-
 def getUPnPLight():
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     c.execute("SELECT upnpLight FROM 'locals'")
     data = c.fetchone()
@@ -97,7 +89,7 @@ def getUPnPLight():
 
 
 def getRealLight():
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     c.execute("SELECT startLight, midLight, endLight, dayLength, moon FROM 'locals'")
     data = c.fetchone()
@@ -130,7 +122,7 @@ def getRealLight():
 
 
 def isUPnPEnabled():
-    conn = sqlite3.connect('aqua.db')
+    conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
     c.execute("SELECT upnp FROM 'locals'")
     data = c.fetchone()
@@ -158,7 +150,6 @@ def getTemperature():
     device_folder = glob.glob(base_dir + '28*')[0]
     device_file = device_folder + '/w1_slave'
 
-    # raw
     f = open(device_file, 'r')
     lines = f.readlines()
     f.close()
@@ -168,8 +159,6 @@ def getTemperature():
     if equals_pos != -1:
         temp_string = lines[1][equals_pos + 2:]
         temp_c = float(temp_string) / 1000.0
-        # temp_f = temp_c * 9.0 / 5.0 + 32.0
-        # return temp_c, temp_f
         return temp_c
     return -273.15
 
@@ -181,25 +170,35 @@ def setTemperature(value):
 def setUPnPTemperature(value):
     if isUPnPEnabled():
         updateInDB("upnpTemp", value)
-        # setTemperature(value)
-        # TODO underestand this
+        updateRemoteDB(code)
     else:
-        print "Not Upnp"
-
-
-def setLight(value):
-    pass
+        print "Not in UPnP mode"
 
 
 def setUPnPLight(value):
     if isUPnPEnabled():
         updateInDB("upnpLight", value)
-        setLight(value)
+        updateRemoteDB(code)
     else:
-        print "Not Upnp"
+        print "Not in UPnP mode"
 
 
-###############################
+def getTankByCode(code):
+    req = requests.get("https://aqua-ocs.herokuapp.com/tank?code=" + code)
+    local_json_obj = req.json()
+    local_json_obj = local_json_obj[0]
+    return local_json_obj
+
+
+def updateRemoteDB(code):
+    conn = sqlite3.connect('../aqua.db')
+    c = conn.cursor()
+    c.execute("SELECT upnpLight, upnpTemp FROM 'locals'")
+    data = c.fetchone()
+    conn.close()
+    sendingData = {'upnpTemperature': str(data[0]), 'upnpLight': str(data[1])}
+    requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(tank['id']), data=sendingData)
+
 
 def main():
     print "Starting local UDP server..."
@@ -218,8 +217,6 @@ def main():
 
             if action == "setTemperature":
                 setTemperature(value)
-            elif action == "setLight":
-                setLight(value)
             elif action == "setUPnPTemperature":
                 setUPnPTemperature(value)
             elif action == "setUPnPLight":
@@ -234,6 +231,4 @@ def main():
                 print("[UDP Server] W00T are you talking about m8t ?")
 
 
-###############
-# main()
-checkTodayInDB()
+main()
