@@ -1,10 +1,10 @@
-import requests
-import time
-import os
 import datetime
-import dateutil.parser
 import json
+import time
 import warnings
+
+import dateutil.parser
+import requests
 
 warnings.filterwarnings("ignore", category=UnicodeWarning)
 
@@ -26,12 +26,17 @@ def getTankInfos(code):
 
 
 def updateTankStatus(global_json_obj):
-    print requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(global_json_obj['id']), data="{'state': 'online'}").status_code
+    now = datetime.datetime.now().replace(tzinfo=None)
+    sendingData = {'state': 'online', 'lastPing': str(now)}
+    print requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(global_json_obj['id']),
+                       data=sendingData).status_code
 
 
 def getBrightnessLevel(global_json_obj):
     # https://aqua-ocs.herokuapp.com/tank/light?lat=&lng= hedha yrajaalek moon value moon 0.46980866740073773 status OK"}
-    req = requests.get("https://aqua-ocs.herokuapp.com/tank/light?lng=" + str(global_json_obj['longitude']) + "&lat=" + str(global_json_obj['latitude']))
+    req = requests.get(
+        "https://aqua-ocs.herokuapp.com/tank/light?lng=" + str(global_json_obj['longitude']) + "&lat=" + str(
+            global_json_obj['latitude']))
     local_json_obj = req.json()
 
     now = datetime.datetime.now().replace(tzinfo=None)
@@ -79,15 +84,15 @@ def start():
         json_brightness = getBrightnessLevel(json_obj)
     else:
         for i in range(0, 4):
-            #GPIO.output(ledPin, GPIO.LOW)
+            # GPIO.output(ledPin, GPIO.LOW)
             print "BLINK"
             time.sleep(1)
-            #GPIO.output(ledPin, GPIO.HIGH)
+            # GPIO.output(ledPin, GPIO.HIGH)
             print "BLANK"
             time.sleep(1)
         time.sleep(10)
         # time.sleep(300)
-        #I think when using a environment variable, it is required to rerun the script in another session
+        # I think when using a environment variable, it is required to rerun the script in another session
         start(json_obj)
         #
 

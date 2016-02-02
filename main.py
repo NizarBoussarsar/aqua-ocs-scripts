@@ -1,11 +1,12 @@
 #!/usr/bin/python
 
-import socket
-import os
-import glob
-import time
-import sqlite3
 import datetime
+import glob
+import os
+import socket
+import sqlite3
+import time
+
 import dateutil.parser
 
 
@@ -15,6 +16,39 @@ import dateutil.parser
 # Get Light (Done)
 # Set Light
 # UPNP x2 (DONE TODO integrate & test)
+
+
+def getLastDateInDB():
+    conn = sqlite3.connect('aqua.db')
+    c = conn.cursor()
+    c.execute("SELECT today FROM 'locals'")
+    data = c.fetchone()
+    conn.close()
+    return float(data[0])
+
+
+# Checks if the line in DB is from today
+def checkTodayInDB():
+    conn = sqlite3.connect('aqua.db')
+    c = conn.cursor()
+    today = str('{:02d}'.format(datetime.datetime.now().day))
+    today += str('{:02d}'.format(datetime.datetime.now().month))
+    today += str(datetime.datetime.now().year)
+    if (getLastDateInDB() != today):
+        req = "INSERT into locals (today) Values('" + today + "');"
+        c.execute(req)
+        conn.commit()
+        c.close()
+        # Delete
+        c = conn.cursor()
+        req = "DELETE FROM locals where today <> '" + today + "';;"
+        c.execute(req)
+        conn.commit()
+        c.close()
+        return False
+    else:
+        return True
+
 
 def updateInDB(col, value):
     conn = sqlite3.connect('aqua.db')
@@ -159,11 +193,9 @@ def main():
             action = data[0]
             value = data[1]
 
-            print "Action ", action, " Value ", value
+            checkTodayInDB()
 
-            if action == "sample":
-                pass
-            elif action == "setTemperature":
+            if action == "setTemperature":
                 setTemperature(value)
             elif action == "setLight":
                 setLight(value)
