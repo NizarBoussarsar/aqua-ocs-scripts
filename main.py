@@ -19,12 +19,19 @@ import dateutil.parser
 
 
 def getLastDateInDB():
+    today = str('{:02d}'.format(datetime.datetime.now().day))
+    today += str('{:02d}'.format(datetime.datetime.now().month))
+    today += str(datetime.datetime.now().year)
+
     conn = sqlite3.connect('aqua.db')
     c = conn.cursor()
-    c.execute("SELECT today FROM 'locals'")
+    c.execute("SELECT today FROM 'locals' WHERE today = '" + today + "'")
     data = c.fetchone()
     conn.close()
-    return float(data[0])
+    if data == None:
+        return False
+    else:
+        return True
 
 
 # Checks if the line in DB is from today
@@ -34,17 +41,16 @@ def checkTodayInDB():
     today = str('{:02d}'.format(datetime.datetime.now().day))
     today += str('{:02d}'.format(datetime.datetime.now().month))
     today += str(datetime.datetime.now().year)
-    if (getLastDateInDB() != today):
+    if (getLastDateInDB() == False):
         req = "INSERT into locals (today) Values('" + today + "');"
         c.execute(req)
         conn.commit()
-        c.close()
         # Delete
-        c = conn.cursor()
-        req = "DELETE FROM locals where today <> '" + today + "';;"
-        c.execute(req)
+        c2 = conn.cursor()
+        req = "DELETE FROM locals where today <> '" + today + "';"
+        c2.execute(req)
         conn.commit()
-        c.close()
+        conn.close()
         return False
     else:
         return True
@@ -212,6 +218,6 @@ def main():
             else:
                 print("[UDP Server] W00T are you talking about m8t ?")
 
+
 ###############
-# isUPnPEnabled()
-# print getLight()
+main()
