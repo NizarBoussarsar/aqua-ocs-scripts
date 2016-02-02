@@ -18,6 +18,15 @@ import dateutil.parser
 # UPNP x2 (DONE TODO integrate & test)
 
 
+def getUPnPValues():
+    conn = sqlite3.connect('aqua.db')
+    c = conn.cursor()
+    c.execute("SELECT upnp, upnpTemp, upnpLight  FROM 'locals'")
+    data = c.fetchone()
+    conn.close()
+    return data;
+
+
 def getLastDateInDB():
     today = str('{:02d}'.format(datetime.datetime.now().day))
     today += str('{:02d}'.format(datetime.datetime.now().month))
@@ -25,7 +34,7 @@ def getLastDateInDB():
 
     conn = sqlite3.connect('aqua.db')
     c = conn.cursor()
-    c.execute("SELECT today FROM 'locals' WHERE today = '" + today + "'")
+    c.execute("SELECT today  FROM 'locals' WHERE today = '" + today + "'")
     data = c.fetchone()
     conn.close()
     if data == None:
@@ -42,7 +51,13 @@ def checkTodayInDB():
     today += str('{:02d}'.format(datetime.datetime.now().month))
     today += str(datetime.datetime.now().year)
     if (getLastDateInDB() == False):
-        req = "INSERT into locals (today) Values('" + today + "');"
+        upnpValues = getUPnPValues()
+        if upnpValues == None:
+            reqValues = "'0','0','0'"
+        else:
+            reqValues = "'" + upnpValues[0] + "','" + upnpValues[1] + "','" + upnpValues[2] + "'"
+
+        req = "INSERT into locals (upnp, upnpTemp, upnpLight, today) Values(" + reqValues + ",'" + today + "');"
         c.execute(req)
         conn.commit()
         # Delete
@@ -220,4 +235,5 @@ def main():
 
 
 ###############
-main()
+# main()
+checkTodayInDB()
