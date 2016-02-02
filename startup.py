@@ -2,20 +2,50 @@ import datetime
 import json
 import time
 import warnings
-
+import grovepi
 import dateutil.parser
 import requests
 
 warnings.filterwarnings("ignore", category=UnicodeWarning)
 
-# import RPi.GPIO as GPIO
+'''
+import RPi.GPIO as GPIO
+
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM) # Broadcom pin-numbering scheme
+GPIO.setup(ledPin, GPIO.OUT) # LED pin set as output
+'''
 
 # code = os.environ["TANKCODE"]
 code = '354'
 json_obj = {}
 
+# Connect the Grove LED Bar to digital port D3
+ledbar = 3
 
 # ledPin = 23
+
+def setLedValue(brightness):
+    if(brightness < 10):
+        grovepi.ledBar_setBits(ledbar, 0b0000000001)
+    if (brightness > 10 and brightness <= 20):
+        grovepi.ledBar_setBits(ledbar, 0b0000000011)
+    if (brightness > 20 and brightness <= 30):
+        grovepi.ledBar_setBits(ledbar, 0b0000000111)
+    if (brightness > 30 and brightness <= 40):
+        grovepi.ledBar_setBits(ledbar, 0b0000001111)
+    if (brightness > 40 and brightness <= 50):
+        grovepi.ledBar_setBits(ledbar, 0b0000011111)
+    if (brightness > 50 and brightness <= 60):
+        grovepi.ledBar_setBits(ledbar, 0b0000111111)
+    if (brightness > 60 and brightness <= 70):
+        grovepi.ledBar_setBits(ledbar, 0b0001111111)
+    if (brightness > 70 and brightness <= 80):
+        grovepi.ledBar_setBits(ledbar, 0b0011111111)
+    if (brightness > 80 and brightness <= 90):
+        grovepi.ledBar_setBits(ledbar, 0b0111111111)
+    if (brightness > 90 and brightness <= 100):
+        grovepi.ledBar_setBits(ledbar, 0b1111111111)
 
 def getTankInfos(code):
     req = requests.get("https://aqua-ocs.herokuapp.com/tank?code=" + code)
@@ -23,7 +53,6 @@ def getTankInfos(code):
     local_json_obj = local_json_obj[0]
     print local_json_obj
     return local_json_obj
-
 
 def updateTankStatus(global_json_obj):
     now = datetime.datetime.now().replace(tzinfo=None)
@@ -48,17 +77,6 @@ def getBrightnessLevel(global_json_obj):
     val = 0
     data = {}
 
-    '''
-    now = datetime.datetime.now().replace(tzinfo=None)
-    sunriseTime = dateutil.parser.parse('2016-01-16T07:01:42+00:00').replace(tzinfo=None)
-    sunsetTime = dateutil.parser.parse('2016-01-16T16:21:42+00:00').replace(tzinfo=None)
-    solarNoonTime = dateutil.parser.parse('2016-01-16T11:41:42+00:00').replace(tzinfo=None)
-    lightLength = 33600
-    moonBrightness = 0.48616002612055303
-    val = 0
-    data = {}
-    '''
-
     if (now > sunriseTime) and (now < sunsetTime):
         data['time'] = 'sun'
         if now < solarNoonTime:
@@ -78,10 +96,16 @@ def getBrightnessLevel(global_json_obj):
 
 
 def start():
+    grovepi.pinMode(ledbar,"OUTPUT")
+    grovepi.ledBar_init(ledbar, 0)
     json_obj = getTankInfos(code)
     if json_obj != []:
         updateTankStatus(json_obj)
         json_brightness = getBrightnessLevel(json_obj)
+        if json_brightness['time'] == "sun":
+            setLedValue(json_brightness['brightness'])
+        else:
+            setLedValue(json_brightness['brightness'] * 0.5)
     else:
         for i in range(0, 4):
             # GPIO.output(ledPin, GPIO.LOW)
@@ -97,10 +121,5 @@ def start():
         #
 
 
-'''
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM) # Broadcom pin-numbering scheme
-GPIO.setup(ledPin, GPIO.OUT) # LED pin set as output
-'''
 
 start()
