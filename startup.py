@@ -1,42 +1,67 @@
 import datetime
-import json
 import time
 import warnings
-
 import dateutil.parser
+import grovepi
 import requests
+import sqlite3
+from grovepi import *
+import os
 
 warnings.filterwarnings("ignore", category=UnicodeWarning)
 
-# import RPi.GPIO as GPIO
-
-# code = os.environ["TANKCODE"]
-code = '354'
+code = os.environ["TANKCODE"]
 json_obj = {}
 
+# Connect the Grove LED Bar to digital port D3
+ledbar = 3
 
-# ledPin = 23
+# Connect the Grove LED to digital port D6
+led = 6
+
+def setLedValue(brightness):
+    level = 0
+    if (brightness > 0 and brightness <= 10):
+        level = int('0000000001', 2)
+    if (brightness > 10 and brightness <= 20):
+        level = int('0000000011', 2)
+    if (brightness > 20 and brightness <= 30):
+        level = int('0000000111', 2)
+    if (brightness > 30 and brightness <= 40):
+        level = int('0000001111', 2)
+    if (brightness > 40 and brightness <= 50):
+        level = int('0000011111', 2)
+    if (brightness > 50 and brightness <= 60):
+        level = int('0000111111', 2)
+    if (brightness > 60 and brightness <= 70):
+        level = int('0001111111', 2)
+    if (brightness > 70 and brightness <= 80):
+        level = int('0011111111', 2)
+    if (brightness > 80 and brightness <= 90):
+        level = int('0111111111', 2)
+    if (brightness > 90 and brightness <= 100):
+        level = int('1111111111', 2)
+    print "level : " + str(level) + " brightness : " + str(brightness)
+    grovepi.ledBar_setBits(ledbar, level)
 
 def getTankInfos(code):
     req = requests.get("https://aqua-ocs.herokuapp.com/tank?code=" + code)
     local_json_obj = req.json()
-    local_json_obj = local_json_obj[0]
-    print local_json_obj
-    return local_json_obj
-
+    if local_json_obj != []:
+        return local_json_obj[0]
+    else:
+        return []
 
 def updateTankStatus(global_json_obj):
     now = datetime.datetime.now().replace(tzinfo=None)
     sendingData = {'state': 'online', 'lastPing': str(now)}
-    print requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(global_json_obj['id']),
-                       data=sendingData).status_code
+    requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(global_json_obj['id']), data=sendingData)
 
 
 def getBrightnessLevel(global_json_obj):
-    # https://aqua-ocs.herokuapp.com/tank/light?lat=&lng= hedha yrajaalek moon value moon 0.46980866740073773 status OK"}
     req = requests.get(
-        "https://aqua-ocs.herokuapp.com/tank/light?lng=" + str(global_json_obj['longitude']) + "&lat=" + str(
-            global_json_obj['latitude']))
+            "https://aqua-ocs.herokuapp.com/tank/light?lng=" + str(global_json_obj['longitude']) + "&lat=" + str(
+                    global_json_obj['latitude']))
     local_json_obj = req.json()
 
     now = datetime.datetime.now().replace(tzinfo=None)
@@ -47,17 +72,6 @@ def getBrightnessLevel(global_json_obj):
     moonBrightness = local_json_obj['moon']
     val = 0
     data = {}
-
-    '''
-    now = datetime.datetime.now().replace(tzinfo=None)
-    sunriseTime = dateutil.parser.parse('2016-01-16T07:01:42+00:00').replace(tzinfo=None)
-    sunsetTime = dateutil.parser.parse('2016-01-16T16:21:42+00:00').replace(tzinfo=None)
-    solarNoonTime = dateutil.parser.parse('2016-01-16T11:41:42+00:00').replace(tzinfo=None)
-    lightLength = 33600
-    moonBrightness = 0.48616002612055303
-    val = 0
-    data = {}
-    '''
 
     if (now > sunriseTime) and (now < sunsetTime):
         data['time'] = 'sun'
@@ -72,35 +86,44 @@ def getBrightnessLevel(global_json_obj):
         val = float(("%.3f" % float(moonBrightness))) * int(100)
 
     data['brightness'] = val
-    json_data = json.dumps(data)
-    print json_data
-    return json_data
+    return data
 
+def checkLightUPnP():
+    conn = sqlite3.connect('aqua.db')
+    c = conn.cursor()
+    c.execute("SELECT upnp, upnpLight FROM 'locals'")
+    data = c.fetchone()
+    conn.close()
+    return data
 
 def start():
+    grovepi.pinMode(ledbar, "OUTPUT")
+    grovepi.ledBar_init(ledbar, 0)
+    grovepi.ledBar_orientation(ledbar, 1)
+    pinMode(led,"OUTPUT")
     json_obj = getTankInfos(code)
     if json_obj != []:
         updateTankStatus(json_obj)
-        json_brightness = getBrightnessLevel(json_obj)
+        data = checkLightUPnP()
+        if data != None:
+            if data[0] == '1':
+                level = int(data[1])
+            else:
+                json_brightness = getBrightnessLevel(json_obj)
+                if json_brightness['time'] == "sun":
+                    level = float(json_brightness['brightness'])
+                else:
+                    level = float(json_brightness['brightness'])
+        setLedValue(int(level))
     else:
         for i in range(0, 4):
-            # GPIO.output(ledPin, GPIO.LOW)
+            digitalWrite(led,1)
             print "BLINK"
             time.sleep(1)
-            # GPIO.output(ledPin, GPIO.HIGH)
+            digitalWrite(led,0)
             print "BLANK"
             time.sleep(1)
-        time.sleep(10)
-        # time.sleep(300)
-        # I think when using a environment variable, it is required to rerun the script in another session
+        time.sleep(60)
         start(json_obj)
-        #
-
-
-'''
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM) # Broadcom pin-numbering scheme
-GPIO.setup(ledPin, GPIO.OUT) # LED pin set as output
-'''
 
 start()
