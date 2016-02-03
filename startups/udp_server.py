@@ -197,6 +197,9 @@ def updateRemoteDB(code):
     data = c.fetchone()
     conn.close()
     sendingData = {'upnpTemperature': str(data[0]), 'upnpLight': str(data[1])}
+    #Added this
+    tank = getTankByCode(code)
+    #
     requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(tank['id']), data=sendingData)
 
 
