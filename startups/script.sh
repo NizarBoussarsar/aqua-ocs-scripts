@@ -1,7 +1,13 @@
-#!/usr/bin/env python
+#!/bin/sh
+cd /home/pi/Aquarium/scripts/startups/
 
-#ip route del default via 192.168.137.1
-#python startup.py
-#python udp_server.py
-#mono SampleDevice.exe
-#python rfid_tag.py
+python startup.py
+echo "startup"
+python udp_server.py
+echo "udp_server"
+mono SampleDevice.exe
+echo "SampleDevice"
+python rfid_tag.py
+echo "rfid_tag"
+
+cd /

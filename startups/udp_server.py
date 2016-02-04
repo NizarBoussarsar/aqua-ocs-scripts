@@ -8,9 +8,9 @@ import sqlite3
 import time
 import requests
 import dateutil.parser
+import grovepi
 
 code = os.environ["TANKCODE"]
-tank = ''
 
 
 def getUPnPValues():
@@ -29,7 +29,7 @@ def getLastDateInDB():
 
     conn = sqlite3.connect('../aqua.db')
     c = conn.cursor()
-    c.execute("SELECT today  FROM 'locals' WHERE today = '" + today + "'")
+    c.execute("SELECT today FROM 'locals' WHERE today = '" + today + "'")
     data = c.fetchone()
     conn.close()
     if data == None:
@@ -37,6 +37,9 @@ def getLastDateInDB():
     else:
         return True
 
+'''
+TODO: Remplacer INSERT INTO par UPDATE
+'''
 
 # Checks if the line in DB is from today
 def checkTodayInDB():
@@ -178,6 +181,7 @@ def setUPnPTemperature(value):
 def setUPnPLight(value):
     if isUPnPEnabled():
         updateInDB("upnpLight", value)
+        setBrightness(value)
         updateRemoteDB(code)
     else:
         print "Not in UPnP mode"
@@ -189,6 +193,7 @@ def getTankByCode(code):
     local_json_obj = local_json_obj[0]
     return local_json_obj
 
+tank = getTankByCode(code)
 
 def updateRemoteDB(code):
     conn = sqlite3.connect('../aqua.db')
@@ -197,11 +202,34 @@ def updateRemoteDB(code):
     data = c.fetchone()
     conn.close()
     sendingData = {'upnpTemperature': str(data[0]), 'upnpLight': str(data[1])}
-    #Added this
-    tank = getTankByCode(code)
-    #
     requests.put("https://aqua-ocs.herokuapp.com/tank/" + str(tank['id']), data=sendingData)
 
+# Connect the Grove LED Bar to digital port D3
+ledbar = 3
+
+def setBrightness(brightness):
+    level = 0
+    if (brightness > 0 and brightness <= 10):
+        level = int('0000000001', 2)
+    if (brightness > 10 and brightness <= 20):
+        level = int('0000000011', 2)
+    if (brightness > 20 and brightness <= 30):
+        level = int('0000000111', 2)
+    if (brightness > 30 and brightness <= 40):
+        level = int('0000001111', 2)
+    if (brightness > 40 and brightness <= 50):
+        level = int('0000011111', 2)
+    if (brightness > 50 and brightness <= 60):
+        level = int('0000111111', 2)
+    if (brightness > 60 and brightness <= 70):
+        level = int('0001111111', 2)
+    if (brightness > 70 and brightness <= 80):
+        level = int('0011111111', 2)
+    if (brightness > 80 and brightness <= 90):
+        level = int('0111111111', 2)
+    if (brightness > 90 and brightness <= 100):
+        level = int('1111111111', 2)
+    grovepi.ledBar_setBits(ledbar, level)
 
 def main():
     print "Starting local UDP server..."
