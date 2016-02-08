@@ -1,5 +1,4 @@
 import datetime
-import os
 import sqlite3
 import time
 import warnings
@@ -12,6 +11,7 @@ from grovepi import *
 warnings.filterwarnings("ignore", category=UnicodeWarning)
 
 code = os.environ["TANKCODE"]
+
 json_obj = {}
 
 # Connect the Grove LED to digital port D6
@@ -43,7 +43,7 @@ def setLedValue(brightness):
         level = int('0111111111', 2)
     if (brightness > 90 and brightness <= 100):
         level = int('1111111111', 2)
-    grovepi.ledBar_setBits(ledbar, level)
+        grovepi.ledBar_setBits(ledbar, level)
 
 
 def getTankInfos(code):
@@ -71,7 +71,7 @@ def getUPnPValues():
     return data;
 
 
-def getLastDateInDB():
+def isTodayInDB():
     today = str('{:02d}'.format(datetime.datetime.now().day))
     today += str('{:02d}'.format(datetime.datetime.now().month))
     today += str(datetime.datetime.now().year)
@@ -86,32 +86,21 @@ def getLastDateInDB():
     else:
         return True
 
-'''
-TODO: Remplacer INSERT INTO par UPDATE
-'''
+
 # Checks if the line in DB is from today
 def checkTodayInDB(sunriseTime, solarNoonTime, sunsetTime, lightLength, moonBrightness):
-    conn = sqlite3.connect('../aqua.db')
-    c = conn.cursor()
     today = str('{:02d}'.format(datetime.datetime.now().day))
     today += str('{:02d}'.format(datetime.datetime.now().month))
     today += str(datetime.datetime.now().year)
-    if (getLastDateInDB() == False):
-        upnpValues = getUPnPValues()
-        if upnpValues == None:
-            reqValues = "'0','0','0'"
-        else:
-            reqValues = "'" + upnpValues[0] + "','" + upnpValues[1] + "','" + upnpValues[2] + "'"
+    if (isTodayInDB() == False):
 
-        req = "INSERT into locals (startLight, midLight, endLight, dayLength, moon) Values('" + sunriseTime + "','" + solarNoonTime + "','" + sunsetTime + + "','" + lightLength + "','" + moonBrightness + "');"
-        c.execute(req)
-        conn.commit()
-        # Delete
-        c2 = conn.cursor()
-        req = "DELETE FROM locals where today <> '" + today + "';"
-        c2.execute(req)
-        conn.commit()
-        conn.close()
+        updateTodyInDB()
+        updateInDB("startLight", str(sunriseTime))
+        updateInDB("midLight", str(solarNoonTime))
+        updateInDB("endLight", str(sunsetTime))
+        updateInDB("dayLength", str(lightLength))
+        updateInDB("moon", str(moonBrightness))
+
         return False
     else:
         return True
@@ -130,13 +119,26 @@ def updateInDB(col, value):
     c.close()
 
 
+def updateTodyInDB():
+    conn = sqlite3.connect('../aqua.db')
+    c = conn.cursor()
+    today = str('{:02d}'.format(datetime.datetime.now().day))
+    today += str('{:02d}'.format(datetime.datetime.now().month))
+    today += str(datetime.datetime.now().year)
+    req = "UPDATE locals SET today = '" + today + "'"
+    print req
+    c.execute(req)
+    conn.commit()
+    c.close()
+
+
 ##################################
 
 
 def getBrightnessLevel(global_json_obj):
     req = requests.get(
-            "https://aqua-ocs.herokuapp.com/tank/light?lng=" + str(global_json_obj['longitude']) + "&lat=" + str(
-                    global_json_obj['latitude']))
+        "https://aqua-ocs.herokuapp.com/tank/light?lng=" + str(global_json_obj['longitude']) + "&lat=" + str(
+            global_json_obj['latitude']))
     local_json_obj = req.json()
 
     now = datetime.datetime.now().replace(tzinfo=None)
@@ -145,6 +147,8 @@ def getBrightnessLevel(global_json_obj):
     solarNoonTime = dateutil.parser.parse(local_json_obj['lightMid']).replace(tzinfo=None)
     lightLength = local_json_obj['lightLength']
     moonBrightness = local_json_obj['moon']
+
+    checkTodayInDB(sunriseTime, solarNoonTime, sunsetTime, lightLength, moonBrightness)
 
     val = 0
     data = {}
